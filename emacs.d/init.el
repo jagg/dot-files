@@ -241,14 +241,78 @@
 
 (use-package sly-asdf
   :demand t
-  :ensure t
-  :config
-  )
+  :ensure t)
 
 (use-package paredit
   :ensure t
   :demand t
   :hook '(lisp-mode))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; OCaml 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(use-package tuareg
+  :ensure t
+  :mode (("\\.ocamlinit\\'" . tuareg-mode)))
+
+(use-package dune
+  :ensure t)
+
+(use-package merlin
+  :ensure t
+  :config
+  (add-hook 'tuareg-mode-hook #'merlin-mode)
+  (add-hook 'merlin-mode-hook #'company-mode)
+  ;; we're using flycheck instead
+  (setq merlin-error-after-save nil))
+
+(use-package merlin-eldoc
+  :ensure t
+  :hook ((tuareg-mode) . merlin-eldoc-setup))
+
+(use-package flycheck-ocaml
+  :ensure t
+  :config
+  (flycheck-ocaml-setup))
+
+(use-package utop
+  :ensure t
+  :config
+  (add-hook 'tuareg-mode-hook #'utop-minor-mode))
+
+
+;; (setq utop-command "dune utop")
+(add-hook 'tuareg-mode-hook 'utop-setup-ocaml-buffer)
+(add-hook 'tuareg-mode-hook #'merlin-mode)
+(add-hook 'merlin-mode-hook #'company-mode)
+  ;
+(let ((opam-share (ignore-errors (car (process-lines "opam" "var" "share")))))
+      (when (and opam-share (file-directory-p opam-share))
+       ;; Register Merlin
+       (add-to-list 'load-path (expand-file-name "emacs/site-lisp" opam-share))
+       (autoload 'merlin-mode "merlin" nil t nil)
+       ;; Automatically start it in OCaml buffers
+       (add-hook 'tuareg-mode-hook 'merlin-mode t)
+       (add-hook 'caml-mode-hook 'merlin-mode t)
+       ;; Use opam switch to lookup ocamlmerlin binary
+       (setq merlin-command 'opam)
+       ;; To easily change opam switches within a given Emacs session, you can
+       ;; install the minor mode https://github.com/ProofGeneral/opam-switch-mode
+       ;; and use one of its "OPSW" menus.
+       ))
+
+;; https://github.com/bufordrat/monoconfig/blob/main/emacs/general-init.el#L157-L163
+(defun my-utop-workaround (orig-fun name &rest args)
+  (if (not (equal name "OCaml"))
+      (apply orig-fun name args)
+    (let ((process-connection-type nil))
+      (apply orig-fun name args))))
+
+(advice-add 'make-comint :around #'my-utop-workaround)
+
+;; ## added by OPAM user-setup for emacs / base ## 56ab50dc8996d2bb95e7856a6eddb17b ## you can edit, but keep this line
+(require 'opam-user-setup "~/.emacs.d/opam-user-setup.el")
+;; ## end of OPAM user-setup addition for emacs / base ## keep this line
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Keybindings
@@ -274,7 +338,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Custom Stuff 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(merlin-occurrence-face ((t (:background "gray20" :foreground "white"))))
+ '(merlin-occurrences-face ((t (:background "gray20" :foreground "green"))))
+ '(merlin-type-face ((t (:inherit caml-types-expr-face)))))
 
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
@@ -282,10 +353,5 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(warning-suppress-log-types '((use-package))))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
+
 
