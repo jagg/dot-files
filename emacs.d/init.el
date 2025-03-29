@@ -49,7 +49,7 @@
 
 (show-paren-mode 1)
 
-
+(set-frame-parameter nil 'alpha-background 50)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Basic Emacs Packages
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -144,24 +144,10 @@
   :init (global-flycheck-mode))
 
 (use-package lsp-mode
-  :ensure t
-  :demand t
-  :commands lsp
-  :custom
-  ;; what to use when checking on-save. "check" is default, I prefer clippy
-  (lsp-rust-analyzer-cargo-watch-command "clippy")
-  (lsp-eldoc-render-all t)
-  (lsp-idle-delay 0.6)
-  ;; enable / disable the hints as you prefer:
-  (lsp-rust-analyzer-server-display-inlay-hints t)
-  (lsp-rust-analyzer-display-lifetime-elision-hints-enable "skip_trivial")
-  (lsp-rust-analyzer-display-chaining-hints t)
-  (lsp-rust-analyzer-display-lifetime-elision-hints-use-parameter-names t)
-  (lsp-rust-analyzer-display-closure-return-type-hints t)
-  (lsp-rust-analyzer-display-parameter-hints t)
-  (lsp-rust-analyzer-display-reborrow-hints t)
-  :config
-  (add-hook 'lsp-mode-hook 'lsp-ui-mode))
+  :init
+  :hook ((tuareg-mode . lsp)
+         (caml-mode . lsp))
+  :commands lsp)
 
 (use-package lsp-ui
   :ensure t
@@ -251,68 +237,86 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; OCaml 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(use-package tuareg
-  :ensure t
-  :mode (("\\.ocamlinit\\'" . tuareg-mode)))
+
+(let ((opam-bin (expand-file-name "~/.opam/5.3.0/bin")))
+  (unless (member opam-bin exec-path)
+    (add-to-list 'exec-path opam-bin))
+  (setenv "PATH" (concat opam-bin ":" (getenv "PATH"))))
+
+
+(use-package utop
+   :ensure t
+   :config
+   (add-hook 'tuareg-mode-hook #'utop-minor-mode))
+
+(use-package ocp-indent
+  :ensure t)
 
 (use-package dune
   :ensure t)
 
-(use-package merlin
-  :ensure t
-  :config
-  (add-hook 'tuareg-mode-hook #'merlin-mode)
-  (add-hook 'merlin-mode-hook #'company-mode)
-  ;; we're using flycheck instead
-  (setq merlin-error-after-save nil))
+(use-package tuareg
+   :ensure t
+   :mode (("\\.ocamlinit\\'" . tuareg-mode)))
 
-(use-package merlin-eldoc
-  :ensure t
-  :hook ((tuareg-mode) . merlin-eldoc-setup))
+;; (use-package dune
+;;   :ensure t)
 
-(use-package flycheck-ocaml
-  :ensure t
-  :config
-  (flycheck-ocaml-setup))
+;; (use-package merlin
+;;   :ensure t
+;;   :config
+;;   (add-hook 'tuareg-mode-hook #'merlin-mode)
+;;   (add-hook 'merlin-mode-hook #'company-mode)
+;;   ;; we're using flycheck instead
+;;   (setq merlin-error-after-save nil))
 
-(use-package utop
-  :ensure t
-  :config
-  (add-hook 'tuareg-mode-hook #'utop-minor-mode))
+;; (use-package merlin-eldoc
+;;   :ensure t
+;;   :hook ((tuareg-mode) . merlin-eldoc-setup))
+
+;; (use-package flycheck-ocaml
+;;   :ensure t
+;;   :config
+;;   (flycheck-ocaml-setup))
+
+;; (use-package utop
+;;   :ensure t
+;;   :config
+;;   (add-hook 'tuareg-mode-hook #'utop-minor-mode))
 
 
-;; (setq utop-command "dune utop")
-(add-hook 'tuareg-mode-hook 'utop-setup-ocaml-buffer)
-(add-hook 'tuareg-mode-hook #'merlin-mode)
-(add-hook 'merlin-mode-hook #'company-mode)
-  ;
-(let ((opam-share (ignore-errors (car (process-lines "opam" "var" "share")))))
-      (when (and opam-share (file-directory-p opam-share))
-       ;; Register Merlin
-       (add-to-list 'load-path (expand-file-name "emacs/site-lisp" opam-share))
-       (autoload 'merlin-mode "merlin" nil t nil)
-       ;; Automatically start it in OCaml buffers
-       (add-hook 'tuareg-mode-hook 'merlin-mode t)
-       (add-hook 'caml-mode-hook 'merlin-mode t)
-       ;; Use opam switch to lookup ocamlmerlin binary
-       (setq merlin-command 'opam)
-       ;; To easily change opam switches within a given Emacs session, you can
-       ;; install the minor mode https://github.com/ProofGeneral/opam-switch-mode
-       ;; and use one of its "OPSW" menus.
-       ))
+;; ;; (setq utop-command "dune utop")
+;; (add-hook 'tuareg-mode-hook 'utop-setup-ocaml-buffer)
+;; (add-hook 'tuareg-mode-hook #'merlin-mode)
+;; (add-hook 'merlin-mode-hook #'company-mode)
+;;   ;
+;; (let ((opam-share (ignore-errors (car (process-lines "opam" "var" "share")))))
+;;       (when (and opam-share (file-directory-p opam-share))
+;;        ;; Register Merlin
+;;        (add-to-list 'load-path (expand-file-name "emacs/site-lisp" opam-share))
+;;        (autoload 'merlin-mode "merlin" nil t nil)
+;;        ;; Automatically start it in OCaml buffers
+;;        (add-hook 'tuareg-mode-hook 'merlin-mode t)
+;;        (add-hook 'caml-mode-hook 'merlin-mode t)
+;;        ;; Use opam switch to lookup ocamlmerlin binary
+;;        (setq merlin-command 'opam)
+;;        ;; To easily change opam switches within a given Emacs session, you can
+;;        ;; install the minor mode https://github.com/ProofGeneral/opam-switch-mode
+;;        ;; and use one of its "OPSW" menus.
+;;        ))
 
-;; https://github.com/bufordrat/monoconfig/blob/main/emacs/general-init.el#L157-L163
-(defun my-utop-workaround (orig-fun name &rest args)
-  (if (not (equal name "OCaml"))
-      (apply orig-fun name args)
-    (let ((process-connection-type nil))
-      (apply orig-fun name args))))
+;; ;; https://github.com/bufordrat/monoconfig/blob/main/emacs/general-init.el#L157-L163
+;; (defun my-utop-workaround (orig-fun name &rest args)
+;;   (if (not (equal name "OCaml"))
+;;       (apply orig-fun name args)
+;;     (let ((process-connection-type nil))
+;;       (apply orig-fun name args))))
 
-(advice-add 'make-comint :around #'my-utop-workaround)
+;; (advice-add 'make-comint :around #'my-utop-workaround)
 
-;; ## added by OPAM user-setup for emacs / base ## 56ab50dc8996d2bb95e7856a6eddb17b ## you can edit, but keep this line
-(require 'opam-user-setup "~/.emacs.d/opam-user-setup.el")
-;; ## end of OPAM user-setup addition for emacs / base ## keep this line
+;; ;; ## added by OPAM user-setup for emacs / base ## 56ab50dc8996d2bb95e7856a6eddb17b ## you can edit, but keep this line
+;; (require 'opam-user-setup "~/.emacs.d/opam-user-setup.el")
+;; ;; ## end of OPAM user-setup addition for emacs / base ## keep this line
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Keybindings

@@ -1,8 +1,8 @@
 (in-package :stumpwm)
 ;; https://config.phundrak.com/stumpwm.html
 
-(require :swank)
-(swank-loader:init)
+;; (require :swank)
+;; (swank-loader:init)
 
  ;; (swank:create-server :port 4004
  ;;                     :style swank:*communication-style*
@@ -10,7 +10,9 @@
 
 (setf *startup-message* "Hack and be merry! Control + t ? for Help!")
 
-(require :slynk)
+(ql:quickload :slynk)
+
+
 (stumpwm:defcommand sly-start-server () ()
   "Start a slynk server for sly."
   (sb-thread:make-thread (lambda () (slynk:create-server :dont-close t))))
@@ -42,9 +44,13 @@
                             (stumpwm:current-head)))
 
 (define-key *root-map* (kbd "b") "colon1 exec firefox http://www.google.com/search?q=")
+(define-key *root-map* (kbd "z") "colon1 exec zathura")
 
 ;; Thanks to:
 ;; https://config.phundrak.com/stumpwm/theme.html
+;; Had to be manually installed, not in quicklisp anymore
+
+(ql:quickload 'clx-truetype)
 (load-module "ttf-fonts")
 (xft:cache-fonts)
 (set-font (make-instance 'xft:font :family "Fira Code" :subfamily "Regular" :size 14))
@@ -70,3 +76,25 @@
 ;; Keys
 (define-key stumpwm:*top-map* (stumpwm:kbd "M-Left") "gprev")
 (define-key stumpwm:*top-map* (stumpwm:kbd "M-Right") "gnext")
+
+
+;; Transparency
+
+(exec-shell-command "compton --config ~/.config/compton.conf &")
+
+(defun hide-all-lower-windows (current last)
+  (declare (ignore current last))
+  (when (typep (current-group) 'stumpwm::tile-group)
+    (mapc (lambda (win)
+            (unless (eq win (stumpwm::frame-window
+                             (stumpwm::window-frame win)))
+              (stumpwm::hide-window win)))
+          (group-windows (current-group)))))
+
+(export 'hide-all-lower-windows)
+
+(defcommand enable-hiding-lower-windows () ()
+  "Enable a hook that hides all windows that aren't at the top of their frame.
+This is primarily useful when using transparent windows so that only the focused
+window is visible (letting your wallpaper show through instead of other windows)."
+  (add-hook *focus-window-hook* 'hide-all-lower-windows))
